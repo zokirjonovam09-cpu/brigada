@@ -504,7 +504,7 @@ def davomat_sahifa():
 
     # Barcha sanalarni olish
     conn2 = get_db(); cur2 = conn2.cursor()
-    cur2.execute("SELECT DISTINCT sana FROM davomat WHERE loyiha_id=%s ORDER BY sana", (loyiha_id,))
+    cur2.execute("SELECT DISTINCT sana FROM davomat WHERE loyiha_id=%s ORDER BY SPLIT_PART(sana, ',', 2)::int, SPLIT_PART(sana, ',', 1)::int", (loyiha_id,))
     sanalar = [r["sana"] for r in cur2.fetchall()]
 
     # Davomat ma'lumotlarini olish
@@ -523,27 +523,25 @@ def davomat_sahifa():
     cur2.close(); conn2.close()
 
     # Jadval sarlavhasi
-    ishchi_headers = "".join([f"<th colspan='2'>{i['ism']}<br><small>{i['kunlik_maosh']:,}</small></th>" for i in ishchilar])
+    ishchi_headers = "".join([f"<th>{i['ism']}<br><small>{i['kunlik_maosh']:,}</small></th>" for i in ishchilar])
 
-    # Jadval qatorlari
+    # Jadval qatorlari - inline tahrirlash bilan
     jadval_qatorlar = ""
     for sana in sanalar:
         hk = hafta_kuni(sana)
-        qator = f"<td>{sana}</td><td>{hk}</td>"
+        qator = f"<td><b>{sana}</b></td><td>{hk}</td>"
         for i in ishchilar:
             d = dav_map.get((sana, i["id"]))
             holat = d["holat"] if d else "YOQ"
-            if holat == "HA":
-                holat_text = '<span class="dav-ha">+</span>'
-            elif holat == "0.5":
-                holat_text = '<span class="dav-yarim">0.5</span>'
-            else:
-                holat_text = '<span class="dav-yoq">-</span>'
-            xarajat = xar_map.get((sana, i["id"]), 0)
-            xar_text = f"<br><small style='color:#c0392b'>{xarajat:,}</small>" if xarajat > 0 else ""
             izoh = d["izoh"] if d else ""
-            izoh_text = f"<br><small style='color:#666'>{izoh}</small>" if izoh else ""
-            qator += f"<td>{holat_text}{xar_text}{izoh_text}</td><td></td>"
+            xarajat = xar_map.get((sana, i["id"]), 0)
+            if holat == "HA": rang = "#27ae60"; belgi = "+"
+            elif holat == "0.5": rang = "#e67e22"; belgi = "0.5"
+            else: rang = "#c0392b"; belgi = "-"
+            xar_text = f"<br><small style='color:#c0392b'>{xarajat:,}</small>" if xarajat > 0 else ""
+            izoh_text = f"<br><small style='color:#888'>{izoh}</small>" if izoh else ""
+            onclick_str = "tahrir_och('%s', %d, '%s', '%s', %d)" % (sana, i['id'], holat, izoh, xarajat)
+            qator += f"<td style='cursor:pointer' onclick='{onclick_str}'><span style='color:{rang};font-weight:bold'>{belgi}</span>{xar_text}{izoh_text}</td>" 
         jadval_qatorlar += f"<tr>{qator}</tr>"
 
     # Jami hisob
@@ -601,7 +599,7 @@ def davomat_sahifa():
       </div>
 
       <div class="card">
-        <h2>📅 Davomat jadvali</h2>
+        <h2>📅 Davomat jadvali <small style="font-weight:normal;color:#999">(katakni bosib tahrirlang)</small></h2>
         <div class="dav-table">
           <table>
             <tr>
@@ -615,7 +613,53 @@ def davomat_sahifa():
           </table>
         </div>
       </div>
-    </div></body></html>""")
+    </div>
+
+    <!-- Tahrirlash modali -->
+    <div id="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000">
+      <div style="background:white;border-radius:10px;padding:24px;max-width:400px;margin:100px auto;position:relative">
+        <h3 style="margin-bottom:16px;color:#BA7517">✏️ Davomat tahrirlash</h3>
+        <form method="POST" id="tahrir-form">
+          <input type="hidden" name="loyiha_id" value="{loyiha_id}">
+          <input type="hidden" name="sana" id="m-sana">
+          <input type="hidden" name="ishchi_id" id="m-ishchi">
+          <label>Holat</label>
+          <select name="holat" id="m-holat" style="margin-bottom:12px">
+            <option value="HA">✅ + Keldi</option>
+            <option value="YOQ">❌ - Kelmadi</option>
+            <option value="0.5">🌗 0.5 Yarim kun</option>
+          </select>
+          <label>Izoh</label>
+          <input name="izoh" id="m-izoh" placeholder="Izoh..." style="margin-bottom:12px">
+          <label>Shaxsiy xarajat (so'm)</label>
+          <input name="xarajat" id="m-xarajat" type="number" value="0" style="margin-bottom:16px">
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-green" type="submit">💾 Saqlash</button>
+            <button class="btn btn-red" type="button" onclick="document.getElementById('modal').style.display='none'">Bekor</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+    function tahrir_och(sana, ishchi_id, holat, izoh, xarajat) {{
+      document.getElementById('modal').style.display = 'block';
+      document.getElementById('m-sana').value = sana;
+      document.getElementById('m-ishchi').value = ishchi_id;
+      document.getElementById('m-holat').value = holat;
+      document.getElementById('m-izoh').value = izoh;
+      document.getElementById('m-xarajat').value = xarajat;
+      document.getElementById('tahrir-form').onsubmit = function(e) {{
+        e.preventDefault();
+        var fd = new FormData(this);
+        fd.append('tahrir_mode', '1');
+        fetch('/davomat', {{method:'POST', body:fd}}).then(function() {{
+          window.location.reload();
+        }});
+      }};
+    }}
+    </script>
+    </body></html>""")
 
 # ============================================================
 # AVANSLAR
@@ -766,7 +810,7 @@ def hisobot_sahifa():
     jami_xarajat = cur.fetchone()["s"]
     cur.execute("SELECT COALESCE(SUM(miqdor),0) as s FROM mijoz_tolovlar WHERE loyiha_id=%s", (loyiha_id,))
     jami_tushgan = cur.fetchone()["s"]
-    cur.execute("SELECT DISTINCT sana FROM davomat WHERE loyiha_id=%s ORDER BY sana", (loyiha_id,))
+    cur.execute("SELECT DISTINCT sana FROM davomat WHERE loyiha_id=%s ORDER BY SPLIT_PART(sana, ',', 2)::int, SPLIT_PART(sana, ',', 1)::int", (loyiha_id,))
     sanalar = [r["sana"] for r in cur.fetchall()]
     cur.execute("SELECT * FROM davomat WHERE loyiha_id=%s", (loyiha_id,))
     dav_rows = cur.fetchall()
