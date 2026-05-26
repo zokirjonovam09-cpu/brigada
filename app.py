@@ -504,7 +504,7 @@ def davomat_sahifa():
 
     # Barcha sanalarni olish
     conn2 = get_db(); cur2 = conn2.cursor()
-    cur2.execute("SELECT DISTINCT sana FROM davomat WHERE loyiha_id=%s ORDER BY SPLIT_PART(sana, ',', 2)::int, SPLIT_PART(sana, ',', 1)::int", (loyiha_id,))
+    cur2.execute("SELECT sana FROM davomat WHERE loyiha_id=%s GROUP BY sana ORDER BY SPLIT_PART(sana, ',', 2)::int, SPLIT_PART(sana, ',', 1)::int", (loyiha_id,))
     sanalar = [r["sana"] for r in cur2.fetchall()]
 
     # Davomat ma'lumotlarini olish
@@ -810,7 +810,7 @@ def hisobot_sahifa():
     jami_xarajat = cur.fetchone()["s"]
     cur.execute("SELECT COALESCE(SUM(miqdor),0) as s FROM mijoz_tolovlar WHERE loyiha_id=%s", (loyiha_id,))
     jami_tushgan = cur.fetchone()["s"]
-    cur.execute("SELECT DISTINCT sana FROM davomat WHERE loyiha_id=%s ORDER BY SPLIT_PART(sana, ',', 2)::int, SPLIT_PART(sana, ',', 1)::int", (loyiha_id,))
+    cur.execute("SELECT sana FROM davomat WHERE loyiha_id=%s GROUP BY sana ORDER BY SPLIT_PART(sana, ',', 2)::int, SPLIT_PART(sana, ',', 1)::int", (loyiha_id,))
     sanalar = [r["sana"] for r in cur.fetchall()]
     cur.execute("SELECT * FROM davomat WHERE loyiha_id=%s", (loyiha_id,))
     dav_rows = cur.fetchall()
