@@ -838,11 +838,11 @@ def hisobot_sahifa():
         jami_shaxsiy_xarajat = sum(xar_map.get((s, i["id"]), 0) for s in sanalar)
         maosh = jami_kun * i["kunlik_maosh"]
         jami_maosh += maosh
-        qolgan = maosh - avans - jami_shaxsiy_xarajat
+        qolgan = maosh - float(avans) - float(jami_shaxsiy_xarajat)
         ishchi_data.append({"i": i, "kun": jami_kun, "maosh": maosh, "avans": avans, "xarajat": jami_shaxsiy_xarajat, "qolgan": qolgan})
 
     sof_oldin = jami_tushgan - jami_maosh - jami_xarajat
-    jami_sherik = sum(d["i"]["foiz"]/100 * sof_oldin for d in ishchi_data if d["i"]["rol"]=="sherik")
+    jami_sherik = sum(d["i"]["foiz"]/100 * float(sof_oldin) for d in ishchi_data if d["i"]["rol"]=="sherik")
     sof_foyda = sof_oldin - jami_sherik
 
     l_opts = "".join([f"<option value='{l['id']}' {'selected' if l['id']==loyiha_id else ''}>{l['nom']}</option>" for l in loyihalar])
